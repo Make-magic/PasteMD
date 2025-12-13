@@ -1,6 +1,8 @@
 """版本更新检查器"""
 
 import json
+import re
+from typing import Tuple
 import urllib.request
 import urllib.error
 from typing import Optional, Dict, Any
@@ -13,6 +15,7 @@ class VersionChecker:
     
     GITHUB_API_URL = "https://api.github.richqaq.cn/repos/RICHQAQ/PasteMD/releases/latest"
     TIMEOUT = 5  # 超时时间（秒）
+    PRERANK = {"dev": 0, "rc": 1, "final": 2}
     
     def __init__(self, current_version: str):
         """
@@ -47,7 +50,7 @@ class VersionChecker:
                 return None
             
             # 比较版本号
-            if self._is_newer_version(latest_version, self.current_version):
+            if self._compare_versions(latest_version, self.current_version):
                 return {
                     "has_update": True,
                     "latest_version": latest_version,
@@ -117,40 +120,42 @@ class VersionChecker:
         # 两种方式都失败
         return None
     
-    def _is_newer_version(self, latest: str, current: str) -> bool:
-        """
-        比较版本号
-        
-        Args:
-            latest: 最新版本号
-            current: 当前版本号
-            
-        Returns:
-            如果最新版本更新，返回 True
-        """
-        try:
-            return self._parse_version(latest) > self._parse_version(current)
-        except Exception as e:
-            log(f"Failed to compare versions: {e}")
-            # 如果解析失败，使用字符串比较
-            return latest > current
-    
-    @staticmethod
-    def _parse_version(version_str: str) -> tuple:
-        """
-        将版本字符串解析为可比较的元组
-        
-        例如: "0.1.3.3" -> (0, 1, 3, 3)
-        
-        Args:
-            version_str: 版本字符串
-            
-        Returns:
-            版本号元组
-        """
-        try:
-            parts = version_str.split(".")
-            return tuple(int(p) for p in parts)
-        except (ValueError, AttributeError):
-            # 如果转换失败，返回空元组
-            return ()
+    def _compare_versions(self, latest: str, current: str) -> bool:
+        ln, lrank, lpre = self._parse_version_parts(latest)
+        cn, crank, cpre = self._parse_version_parts(current)
+
+        n = max(len(ln), len(cn))
+        ln = ln + (0,) * (n - len(ln))
+        cn = cn + (0,) * (n - len(cn))
+
+        return (ln, lrank, lpre) > (cn, crank, cpre)
+
+    def _parse_version_parts(self, version_str: str) -> Tuple[Tuple[int, ...], int, int]:
+        s = (version_str or "").strip().lstrip("vV").lower()
+        if not s:
+            return (), self.PRERANK["final"], 0
+
+        s = s.split("+", 1)[0]
+
+        pre_tag = None
+        pre_num = 0
+        m = re.search(r"(?:^|[.\-_])?(dev|rc)\s*\.?\s*(\d*)\b", s)
+        if m:
+            pre_tag = m.group(1)
+            pre_num = int(m.group(2) or 0)
+
+        parts = re.split(r"[.\-_]", s)
+        nums = []
+        for part in parts:
+            if not part:
+                continue
+            m2 = re.match(r"(\d+)", part)
+            if not m2:
+                break
+            nums.append(int(m2.group(1)))
+
+        if not nums:
+            return (), self.PRERANK["final"], 0
+
+        rank = self.PRERANK["final"] if pre_tag is None else self.PRERANK[pre_tag]
+        return tuple(nums), rank, pre_num
