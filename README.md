@@ -205,6 +205,12 @@ npm install --global mermaid-filter
 chromium: "1108766";
 ```
 
+或在报错信息里，如：
+```bash
+npm error Error: Download failed: server returned code 502. URL: https://npmmirror.com/mirrors/chromium-browser-snapshots/Win_x64/1108766/chrome-win.zip
+```
+找到类似 `Win_x64/1108766` 的版本号。
+
 记下这个版本号（例如：`1108766`）。
 
 **步骤 2：下载 Chromium**

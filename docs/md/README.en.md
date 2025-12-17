@@ -191,6 +191,12 @@ Find content like:
 ```typescript
 chromium: "1108766";
 ```
+Or in the error message, e.g.:
+
+```bash
+npm error Error: Download failed: server returned code 502. URL: https://npmmirror.com/mirrors/chromium-browser-snapshots/Win_x64/1108766/chrome-win.zip
+```
+Find version like `Win_x64/1108766`.
 
 Note down this version number (e.g., `1108766`).
 
