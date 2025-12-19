@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Union
 
-from ...utils.com import ensure_com
+from ...utils.win32.com import ensure_com
 
 
 class BaseDocumentInserter(ABC):
