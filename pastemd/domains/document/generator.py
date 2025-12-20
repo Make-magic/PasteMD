@@ -86,7 +86,10 @@ class DocumentGeneratorService:
         docx_bytes = self._pandoc_integration.convert_to_docx_bytes(
             md_text=md_text,
             reference_docx=config.get("reference_docx"),
-            Keep_original_formula=config.get("Keep_original_formula", False)
+            Keep_original_formula=config.get("Keep_original_formula", False),
+            enable_latex_replacements=config.get("enable_latex_replacements", True),
+            custom_filters=config.get("pandoc_filters", []),
+            cwd=config.get("save_dir"),
         )
         
         # 4. 处理 DOCX 样式
@@ -121,7 +124,10 @@ class DocumentGeneratorService:
         docx_bytes = self._pandoc_integration.convert_html_to_docx_bytes(
             html_text=html_text,
             reference_docx=config.get("reference_docx"),
-            Keep_original_formula=config.get("Keep_original_formula", False)
+            Keep_original_formula=config.get("Keep_original_formula", False),
+            enable_latex_replacements=config.get("enable_latex_replacements", True),
+            custom_filters=config.get("pandoc_filters", []),
+            cwd=config.get("save_dir"),
         )
         
         # 2. 处理 DOCX 样式
@@ -174,7 +180,10 @@ class DocumentGeneratorService:
         docx_bytes = self._pandoc_integration.convert_to_docx_bytes(
             md_text=md_text,
             reference_docx=config.get("reference_docx"),
-            Keep_original_formula=config.get("Keep_original_formula", False)
+            Keep_original_formula=config.get("Keep_original_formula", False),
+            enable_latex_replacements=config.get("enable_latex_replacements", True),
+            custom_filters=config.get("pandoc_filters", []),
+            cwd=config.get("save_dir"),
         )
         
         # 5. 处理 DOCX 样式
@@ -222,7 +231,10 @@ class DocumentGeneratorService:
         docx_bytes = self._pandoc_integration.convert_html_to_docx_bytes(
             html_text=html_text,
             reference_docx=config.get("reference_docx"),
-            Keep_original_formula=config.get("Keep_original_formula", False)
+            Keep_original_formula=config.get("Keep_original_formula", False),
+            enable_latex_replacements=config.get("enable_latex_replacements", True),
+            custom_filters=config.get("pandoc_filters", []),
+            cwd=config.get("save_dir"),
         )
         
         # 2. 处理 DOCX 样式

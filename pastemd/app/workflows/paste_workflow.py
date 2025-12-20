@@ -22,7 +22,6 @@ from ...domains.spreadsheet.excel import MSExcelInserter
 from ...domains.spreadsheet.wps_excel import WPSExcelInserter
 from ...domains.notification.manager import NotificationManager
 from ...utils.fs import generate_output_path
-from ...utils.docx_processor import DocxProcessor
 from ...utils.logging import log
 from ...core.state import app_state
 from ...config.defaults import DEFAULT_CONFIG
@@ -182,10 +181,10 @@ class PasteWorkflow:
             config: 配置字典
         """
         # 获取动作配置
-        action = config.get("no_app_action", "open")
+        action = config.get("no_app_action", NoAppAction.OPEN.value)
         
         # 检查是否为禁用模式
-        if action == NoAppAction.NONE:
+        if action == NoAppAction.NONE.value:
             log("no_app_action is 'none', skipping MD files processing")
             self.notification_manager.notify(
                 "PasteMD",
@@ -195,7 +194,7 @@ class PasteWorkflow:
             return
         
         # 验证动作类型
-        if action not in (NoAppAction.OPEN, NoAppAction.SAVE, NoAppAction.CLIPBOARD):
+        if action not in (NoAppAction.OPEN.value, NoAppAction.SAVE.value, NoAppAction.CLIPBOARD.value):
             log(f"Unknown no_app_action for MD files: {action}")
             return
         
@@ -209,7 +208,7 @@ class PasteWorkflow:
             return
 
         # 批量生成 DOCX items，再由 executor 统一输出与汇总通知
-        if action == NoAppAction.CLIPBOARD:
+        if action == NoAppAction.CLIPBOARD.value:
             keep_file = config.get("keep_file", False)
         else:
             keep_file = True
@@ -242,7 +241,7 @@ class PasteWorkflow:
                 pre_failures.append((filename, str(e)))
             except Exception as e:
                 log(f"Failed to process MD file '{filename}': {e}")
-                if action == NoAppAction.CLIPBOARD:
+                if action == NoAppAction.CLIPBOARD.value:
                     self.notification_manager.notify(
                         "PasteMD",
                         t("workflow.action.clipboard_failed"),
@@ -416,40 +415,17 @@ class PasteWorkflow:
             from_md_file: 是否来源于 MD 文件
             file_count: MD 文件数量
         """
-        # 1. 生成 DOCX 字节流（使用 DocumentGeneratorService）
-        docx_bytes = self.doc_generator.convert_markdown_to_docx_bytes(md_text, config)
-
-        # 3. 检测文件行数，如果较大则提示用户转换已开始
-        line_count = md_text.count('\n') + 1
+        # 1. 检测文件行数，如果较大则提前提示用户转换已开始
+        line_count = md_text.count("\n") + 1
         if line_count >= 100:
             self.notification_manager.notify(
                 "PasteMD",
                 t("workflow.markdown.conversion_started", lines=line_count),
-                ok=True
+                ok=True,
             )
 
-        # 4. 生成DOCX字节流
-        self._ensure_pandoc_integration()
-        if self.pandoc_integration is None:
-            # 已经在 _ensure_pandoc_integration 中显示了错误通知
-            return
-        
-        docx_bytes = self.pandoc_integration.convert_to_docx_bytes(
-            md_text=md_text,
-            reference_docx=config.get("reference_docx"),
-            Keep_original_formula=config.get("Keep_original_formula", False),
-            enable_latex_replacements=config.get("enable_latex_replacements", True),
-            custom_filters=config.get("pandoc_filters", []),
-            cwd=config.get("save_dir"),
-        )
-
-        # 5. 在内存中处理 DOCX 样式
-        if config.get("md_disable_first_para_indent", True):
-            docx_bytes = DocxProcessor.apply_custom_processing(
-                docx_bytes,
-                disable_first_para_indent=True,
-                target_style="Body Text"
-            )
+        # 2. 生成 DOCX 字节流（DocumentGeneratorService 内部已处理 normalize/latex/filters/cwd）
+        docx_bytes = self.doc_generator.convert_markdown_to_docx_bytes(md_text, config)
 
         # 6. 使用临时文件插入
         temp_dir = config.get("temp_dir")  # 可选：支持 RAM 盘目录
@@ -463,8 +439,9 @@ class PasteWorkflow:
             # 生成输出路径
             try:
                 output_path = generate_output_path(
-                    keep_file=config.get("keep_file", False),
-                    save_dir=config.get("save_dir", "")
+                    keep_file=True,
+                    save_dir=config.get("save_dir", ""),
+                    md_text=md_text,
                 )
                 with open(output_path, "wb") as f:
                     f.write(docx_bytes)
@@ -563,10 +540,10 @@ class PasteWorkflow:
             html_text: 预读取的 HTML 富文本内容
         """
         # 获取动作配置
-        action = config.get("no_app_action", "open")
+        action = config.get("no_app_action", NoAppAction.OPEN.value)
         
         # 检查是否为禁用模式
-        if action == NoAppAction.NONE:
+        if action == NoAppAction.NONE.value:
             log("no_app_action is 'none', skipping")
             self.notification_manager.notify(
                 "PasteMD",
@@ -576,7 +553,7 @@ class PasteWorkflow:
             return
         
         # 验证动作类型
-        if action not in (NoAppAction.OPEN, NoAppAction.SAVE, NoAppAction.CLIPBOARD):
+        if action not in (NoAppAction.OPEN.value, NoAppAction.SAVE.value, NoAppAction.CLIPBOARD.value):
             log(f"Unknown no_app_action: {action}")
             self.notification_manager.notify(
                 "PasteMD",
