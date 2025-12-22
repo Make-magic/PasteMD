@@ -16,6 +16,10 @@ class WPSExcelWorkflow(BaseWorkflow):
     
     def execute(self) -> None:
         """执行 WPS 表格工作流"""
+        if not self.config.get("enable_excel", True):
+            self. _log("WPS Excel workflow is disabled in config.")
+            self._notify_error("WPS 表格功能未启用")
+            return  # 未启用则跳过
         try:
             # 1. 读取剪贴板
             table_data = self._read_clipboard_table()

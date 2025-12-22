@@ -10,7 +10,7 @@ from typing import Optional, Callable, Dict, Any
 from ...config.paths import get_app_icon_path
 from ...utils.logging import log
 from ...utils.dpi import get_dpi_scale
-from ...utils.system_detect import is_windows
+from ...utils.system_detect import is_windows, is_macos
 from ...i18n import t, iter_languages, get_language_label, get_no_app_action_map
 from ...core.state import app_state
 from ...config.loader import ConfigLoader
@@ -37,7 +37,15 @@ class SettingsDialog:
         self.current_config = copy.deepcopy(app_state.config)
         
         # 初始化 Filter 列表
-        self.filters_list = list(self.current_config.get("pandoc_filters", []))
+        raw_filters = self.current_config.get("pandoc_filters") or []
+        if isinstance(raw_filters, str):
+            raw_filters = [raw_filters]
+        elif not isinstance(raw_filters, (list, tuple)):
+            raw_filters = []
+        self.filters_list = [
+            f for f in raw_filters
+            if isinstance(f, str) and f.strip()
+        ]
         
         if app_state.root:
             self.root = tk.Toplevel(app_state.root)
@@ -359,22 +367,46 @@ class SettingsDialog:
 
     def _browse_pandoc(self):
         """浏览 Pandoc 可执行文件"""
-        path = filedialog.askopenfilename(
-            title=t("settings.dialog.select_pandoc"),
-            filetypes=[(t("settings.file_type.executable"), "*.exe"), (t("settings.file_type.all_files"), "*.*")],
-            initialdir=os.path.dirname(self.pandoc_path_var.get()) if self.pandoc_path_var.get() else None
-        )
+        initialdir: Optional[str] = None
+        current_value = (self.pandoc_path_var.get() or "").strip()
+        if current_value:
+            candidate_dir = os.path.dirname(current_value)
+            if candidate_dir:
+                initialdir = candidate_dir
+
+        kwargs: Dict[str, Any] = {
+            "title": t("settings.dialog.select_pandoc"),
+            "initialdir": initialdir,
+        }
+        if not is_macos():
+            kwargs["filetypes"] = [
+                (t("settings.file_type.executable"), "*.exe" if is_windows() else "*"),
+                (t("settings.file_type.all_files"), "*.*" if is_windows() else "*"),
+            ]
+        path = filedialog.askopenfilename(**kwargs)
         
         if path:
             self.pandoc_path_var.set(path)
 
     def _browse_ref_docx(self):
         """浏览参考 docx 文件"""
-        path = filedialog.askopenfilename(
-            title=t("settings.dialog.select_ref_docx"),
-            filetypes=[(t("settings.file_type.word_doc"), "*.docx"), (t("settings.file_type.all_files"), "*.*")],
-            initialdir=os.path.dirname(self.ref_docx_var.get()) if self.ref_docx_var.get() else None
-        )
+        initialdir: Optional[str] = None
+        current_value = (self.ref_docx_var.get() or "").strip()
+        if current_value:
+            candidate_dir = os.path.dirname(current_value)
+            if candidate_dir:
+                initialdir = candidate_dir
+
+        kwargs: Dict[str, Any] = {
+            "title": t("settings.dialog.select_ref_docx"),
+            "initialdir": initialdir,
+        }
+        if not is_macos():
+            kwargs["filetypes"] = [
+                (t("settings.file_type.word_doc"), "*.docx"),
+                (t("settings.file_type.all_files"), "*.*" if is_windows() else "*"),
+            ]
+        path = filedialog.askopenfilename(**kwargs)
         
         if path:
             self.ref_docx_var.set(path)
@@ -399,8 +431,8 @@ class SettingsDialog:
             reverse_action_map = {v: k for k, v in action_map.items()}
             selected_action_text = self.no_app_action_var.get()
             new_config["no_app_action"] = reverse_action_map.get(selected_action_text, "open")
-
-            new_config["move_cursor_to_end"] = self.move_cursor_var.get()
+            if is_windows():
+                new_config["move_cursor_to_end"] = self.move_cursor_var.get()
             
             new_config["pandoc_path"] = self.pandoc_path_var.get()
             ref_docx = self.ref_docx_var.get()
@@ -655,14 +687,17 @@ class SettingsDialog:
     def _on_add_filter(self):
         """处理添加 Filter 的操作"""
         # 打开文件选择对话框
-        path = filedialog.askopenfilename(
-            title=t("settings.dialog.select_filter"),
-            filetypes=[
+        kwargs: Dict[str, Any] = {"title": t("settings.dialog.select_filter")}
+        if not is_macos():
+            kwargs["filetypes"] = [
                 (t("settings.file_type.lua_script"), "*.lua"),
-                (t("settings.file_type.executable"), "*.exe;*.cmd;*.bat"),
-                (t("settings.file_type.all_files"), "*.*")
+                (
+                    t("settings.file_type.executable"),
+                    "*.exe *.cmd *.bat" if is_windows() else "*.sh *.py *.rb *.pl *.js",
+                ),
+                (t("settings.file_type.all_files"), "*.*" if is_windows() else "*"),
             ]
-        )
+        path = filedialog.askopenfilename(**kwargs)
         
         # 用户是否选择文件
         if path:
@@ -841,15 +876,23 @@ class SettingsDialog:
         # 浏览按钮
         def browse_filter():
             """浏览文件"""
-            path = filedialog.askopenfilename(
-                title=t("settings.dialog.select_filter"),
-                filetypes=[
+            current_value = path_var.get().strip()
+            kwargs: Dict[str, Any] = {"title": t("settings.dialog.select_filter")}
+            if current_value:
+                candidate_dir = os.path.dirname(current_value)
+                if candidate_dir:
+                    kwargs["initialdir"] = candidate_dir
+                kwargs["initialfile"] = os.path.basename(current_value)
+            if not is_macos():
+                kwargs["filetypes"] = [
                     (t("settings.file_type.lua_script"), "*.lua"),
-                    (t("settings.file_type.executable"), "*.exe;*.cmd;*.bat"),
-                    (t("settings.file_type.all_files"), "*.*")
-                ],
-                initialfile=path_var.get()
-            )
+                    (
+                        t("settings.file_type.executable"),
+                        "*.exe *.cmd *.bat" if is_windows() else "*.sh *.py *.rb *.pl *.js",
+                    ),
+                    (t("settings.file_type.all_files"), "*.*" if is_windows() else "*"),
+                ]
+            path = filedialog.askopenfilename(**kwargs)
             if path:
                 path_var.set(path)
         
