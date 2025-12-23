@@ -28,6 +28,7 @@ class WordPlacer(BaseDocumentPlacer):
             with open(self._fixed_temp_path, 'wb') as f:
                 f.write(docx_bytes)
             
+            # 默认移动光标到末尾
             move_cursor_to_end = config.get("move_cursor_to_end", True)
             success = self._applescript_insert(self._fixed_temp_path, move_cursor_to_end)
             
@@ -46,22 +47,15 @@ class WordPlacer(BaseDocumentPlacer):
     
     def _applescript_insert(self, docx_path: str, move_cursor_to_end: bool = True) -> bool:
         """
-        使用 AppleScript 插入文档
-        
-        Args:
-            docx_path: DOCX 文件路径
-            move_cursor_to_end: 插入后是否将光标移动到插入内容的末尾
-            
-        Returns:
-            True 如果插入成功
-            
-        Raises:
-            Exception: 插入失败时
+        使用 AppleScript 在当前光标/选中位置插入文档
         """
+        # todo move_cursor_to_end未实现
         # 将路径转换为 POSIX 格式
         posix_path = os.path.abspath(docx_path)
         
-        # TODO 实现 move_cursor_to_end 光标移动功能
+        # 将 Python bool 转换为 AppleScript bool 字符串
+        as_move_cursor = "true"
+
         script = f'''
         tell application "Microsoft Word"
             activate
@@ -69,13 +63,25 @@ class WordPlacer(BaseDocumentPlacer):
                 make new document
             end if
             
-            tell active document
-                -- 创建一个指向文档末尾的 range
-                set docEnd to count of characters of content
-                set myRange to create range start docEnd end docEnd
-                -- 在末尾插入文件
-                insert file at myRange file name "{posix_path}"
-            end tell
+            -- 修复点：不要 tell selection，而是在 Application 上下文操作
+            
+            -- 1. 获取当前选区的位置对象 (text object)
+            set targetRange to text object of selection
+            
+            -- 2. 在该位置插入文件 (insert file 是 app 的命令，不是 selection 的)
+            -- 注意：Word AppleScript 这里的 file name 需要完整路径
+            insert file at targetRange file name "{posix_path}"
+            
+            -- 3. 处理光标移动
+            if {as_move_cursor} then
+                -- 插入后，selection 通常会选中刚插入的内容
+                -- 我们再次获取当前的 selection 并将其折叠到末尾
+                set currentRange to text object of selection
+                collapse range currentRange direction collapse end
+                
+                -- 显式选中折叠后的点，确保光标视觉上跳过去
+                select currentRange
+            end if
         end tell
         '''
         
@@ -90,8 +96,15 @@ class WordPlacer(BaseDocumentPlacer):
             log(f"AppleScript 插入成功: {docx_path} ")
             return True
         except subprocess.CalledProcessError as e:
-            log(f"AppleScript 执行失败: {e.stderr}")
-            raise Exception(f"AppleScript 错误: {e.stderr}")
+            # 捕获更详细的错误输出
+            error_msg = e.stderr.strip()
+            log(f"AppleScript 执行失败: {error_msg}")
+            
+            # 特殊处理：如果 Word 弹窗导致超时或失败（如宏警告），给提示
+            if "file not found" in error_msg.lower():
+                raise Exception(f"Word 找不到文件: {posix_path}")
+            
+            raise Exception(f"AppleScript 错误: {error_msg}")
         except subprocess.TimeoutExpired:
             log("AppleScript 执行超时")
             raise Exception(t("placer.macos_word.timeout"))
