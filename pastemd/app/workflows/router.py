@@ -5,11 +5,9 @@ from ...utils.logging import log
 from ...service.notification.manager import NotificationManager
 from ...i18n import t
 
-from .word_workflow import WordWorkflow
-from .excel_workflow import ExcelWorkflow
-from .wps_workflow import WPSWorkflow
-from .wps_excel_workflow import WPSExcelWorkflow
-from .fallback_workflow import FallbackWorkflow
+from .word import WordWorkflow, WPSWorkflow
+from .excel import ExcelWorkflow, WPSExcelWorkflow
+from .fallback import FallbackWorkflow
 
 
 class WorkflowRouter:

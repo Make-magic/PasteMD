@@ -3,12 +3,12 @@
 import os
 from typing import List, Tuple, Optional
 
-from ...utils.clipboard import copy_files_to_clipboard
-from ...utils.logging import log
-from ...service.awakener import AppLauncher
-from ...service.spreadsheet.generator import SpreadsheetGenerator
-from ...utils.fs import generate_unique_path
-from ...i18n import t
+from pastemd.utils.clipboard import copy_files_to_clipboard
+from pastemd.utils.logging import log
+from pastemd.service.awakener import AppLauncher
+from pastemd.service.spreadsheet.generator import SpreadsheetGenerator
+from pastemd.utils.fs import generate_unique_path
+from pastemd.i18n import t
 
 
 class OutputExecutor:

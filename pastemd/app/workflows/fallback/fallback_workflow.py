@@ -1,17 +1,17 @@
 """Fallback workflow - handles no-app scenarios."""
 
-from .base import BaseWorkflow
+from ..base import BaseWorkflow
 from .output_executor import OutputExecutor
-from ...utils.clipboard import (
+from pastemd.utils.clipboard import (
     get_clipboard_text, get_clipboard_html, is_clipboard_empty,
     read_markdown_files_from_clipboard
 )
-from ...utils.html_analyzer import is_plain_html_fragment
-from ...utils.markdown_utils import merge_markdown_contents
-from ...service.spreadsheet.parser import parse_markdown_table
-from ...utils.fs import generate_output_path
-from ...core.errors import ClipboardError, PandocError
-from ...i18n import t
+from pastemd.utils.html_analyzer import is_plain_html_fragment
+from pastemd.utils.markdown_utils import merge_markdown_contents
+from pastemd.service.spreadsheet.parser import parse_markdown_table
+from pastemd.utils.fs import generate_output_path
+from pastemd.core.errors import ClipboardError, PandocError
+from pastemd.i18n import t
 
 
 class FallbackWorkflow(BaseWorkflow):
