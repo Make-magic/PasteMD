@@ -1,7 +1,7 @@
 """Hotkey UI entry point."""
 
-from ...domains.hotkey.manager import HotkeyManager
-from ...domains.hotkey.debounce import DebounceManager
+from ...service.hotkey.manager import HotkeyManager
+from ...service.hotkey.debounce import DebounceManager
 from ...config.defaults import DEFAULT_CONFIG
 from ...core.state import app_state
 from ...utils.logging import log

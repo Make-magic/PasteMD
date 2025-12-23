@@ -2,10 +2,10 @@
 
 from abc import ABC, abstractmethod
 from ...core.state import app_state
-from ...domains.notification.manager import NotificationManager
-from ...domains.document import DocumentGenerator
-from ...domains.spreadsheet import SpreadsheetGenerator
-from ...domains.preprocessor import MarkdownPreprocessor
+from ...service.notification.manager import NotificationManager
+from ...service.document import DocumentGenerator
+from ...service.spreadsheet import SpreadsheetGenerator
+from ...service.preprocessor import MarkdownPreprocessor
 from ...utils.logging import log
 
 

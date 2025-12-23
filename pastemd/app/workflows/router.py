@@ -2,7 +2,7 @@
 
 from ...utils.detector import detect_active_app
 from ...utils.logging import log
-from ...domains.notification.manager import NotificationManager
+from ...service.notification.manager import NotificationManager
 from ...i18n import t
 
 from .word_workflow import WordWorkflow

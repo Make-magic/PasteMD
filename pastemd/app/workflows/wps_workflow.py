@@ -1,7 +1,7 @@
 """WPS document workflow."""
 
 from .base import BaseWorkflow
-from ...domains.document import WPSPlacer
+from ...service.document import WPSPlacer
 from ...utils.clipboard import (
     get_clipboard_text, get_clipboard_html, is_clipboard_empty,
     read_markdown_files_from_clipboard

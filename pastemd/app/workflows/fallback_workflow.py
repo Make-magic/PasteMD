@@ -8,7 +8,7 @@ from ...utils.clipboard import (
 )
 from ...utils.html_analyzer import is_plain_html_fragment
 from ...utils.markdown_utils import merge_markdown_contents
-from ...domains.spreadsheet.parser import parse_markdown_table
+from ...service.spreadsheet.parser import parse_markdown_table
 from ...utils.fs import generate_output_path
 from ...core.errors import ClipboardError, PandocError
 from ...i18n import t

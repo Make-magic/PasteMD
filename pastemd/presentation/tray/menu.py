@@ -10,7 +10,7 @@ from ... import __version__
 from ...core.state import app_state
 from ...config.loader import ConfigLoader
 from ...config.paths import get_log_path, get_config_path
-from ...domains.notification.manager import NotificationManager
+from ...service.notification.manager import NotificationManager
 from ...utils.fs import ensure_dir, open_dir, open_file
 from ...utils.logging import log
 from ...utils.version_checker import VersionChecker

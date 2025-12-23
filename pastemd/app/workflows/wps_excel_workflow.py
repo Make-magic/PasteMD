@@ -1,9 +1,9 @@
 """WPS Excel spreadsheet workflow."""
 
 from .base import BaseWorkflow
-from ...domains.spreadsheet import WPSExcelPlacer
+from ...service.spreadsheet import WPSExcelPlacer
 from ...utils.clipboard import get_clipboard_text, is_clipboard_empty
-from ...domains.spreadsheet.parser import parse_markdown_table
+from ...service.spreadsheet.parser import parse_markdown_table
 from ...core.errors import ClipboardError
 from ...i18n import t
 
@@ -77,7 +77,7 @@ class WPSExcelWorkflow(BaseWorkflow):
         """保存 XLSX 到磁盘"""
         try:
             from ...utils.fs import generate_output_path
-            from ...domains.spreadsheet import SpreadsheetGenerator
+            from ...service.spreadsheet import SpreadsheetGenerator
             
             # 生成 XLSX 字节流
             xlsx_bytes = SpreadsheetGenerator.generate_xlsx_bytes(

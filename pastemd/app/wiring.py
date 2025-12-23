@@ -2,7 +2,7 @@
 
 from ..core.state import app_state
 from ..config.loader import ConfigLoader
-from ..domains.notification.manager import NotificationManager
+from ..service.notification.manager import NotificationManager
 from ..app.workflows import execute_paste_workflow
 from ..presentation.tray.menu import TrayMenuManager
 from ..presentation.tray.run import TrayRunner

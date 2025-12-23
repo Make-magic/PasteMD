@@ -11,7 +11,7 @@ from ...utils.logging import log
 from ...utils.hotkey_checker import HotkeyChecker
 from ...utils.dpi import get_dpi_scale
 from ...utils.system_detect import is_windows, is_macos
-from ...domains.hotkey.recorder import HotkeyRecorder
+from ...service.hotkey.recorder import HotkeyRecorder
 from ...i18n import t
 from ...core.state import app_state
 

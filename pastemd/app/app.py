@@ -22,7 +22,7 @@ from ..config.loader import ConfigLoader
 from ..config.paths import get_app_icon_path
 from ..utils.logging import log
 from ..utils.version_checker import VersionChecker
-from ..domains.notification.manager import NotificationManager
+from ..service.notification.manager import NotificationManager
 from ..i18n import DEFAULT_LANGUAGE, detect_system_language, set_language, t
 from .wiring import Container
 

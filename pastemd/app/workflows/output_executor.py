@@ -5,8 +5,8 @@ from typing import List, Tuple, Optional
 
 from ...utils.clipboard import copy_files_to_clipboard
 from ...utils.logging import log
-from ...domains.awakener import AppLauncher
-from ...domains.spreadsheet.generator import SpreadsheetGenerator
+from ...service.awakener import AppLauncher
+from ...service.spreadsheet.generator import SpreadsheetGenerator
 from ...utils.fs import generate_unique_path
 from ...i18n import t
 
