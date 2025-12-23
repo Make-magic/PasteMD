@@ -3,6 +3,7 @@
 import time
 import win32com.client
 from win32com.client import gencache
+from win32com.client import dynamic
 
 from ....utils.win32.com import ensure_com
 from ....utils.logging import log
@@ -163,16 +164,27 @@ class WordInserter(BaseWordInserter):
                 log(f"Successfully connected to Word via {prog_id}")
                 self._ensure_app_ready(app)
                 return app
-            except Exception:
-                try:
-                    # 尝试创建新实例
-                    app = gencache.EnsureDispatch(prog_id)
-                    log(f"Successfully created Word instance via {prog_id}")
-                    self._ensure_app_ready(app)
-                    return app
-                except Exception as e:
-                    log(f"Cannot get Word application via {prog_id}: {e}")
-                    continue
+            except Exception as e:
+                log(f"Cannot get Word application via {prog_id}: {e}")
+            
+            try:
+                app = dynamic.Dispatch(prog_id)
+                
+                log(f"Successfully created Word instance via {prog_id} (Dynamic)")
+                self._ensure_app_ready(app)
+                return app
+            except Exception as e:
+                log(f"Cannot get Word application via {prog_id}: {e}")
+            
+            try:
+                # 尝试创建新实例
+                app = gencache.EnsureDispatch(prog_id)
+                log(f"Successfully created Word instance via {prog_id}")
+                self._ensure_app_ready(app)
+                return app
+            except Exception as e:
+                log(f"Cannot get Word application via {prog_id}: {e}")
+                continue
         
         raise Exception(f"未找到运行中的 {self.app_name}，请先打开")
     

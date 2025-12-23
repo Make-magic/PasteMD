@@ -2,6 +2,7 @@
 
 import time
 import win32com.client
+from win32com.client import dynamic
 
 from .word_inserter import BaseWordInserter
 from ....utils.logging import log
@@ -57,15 +58,26 @@ class WPSInserter(BaseWordInserter):
                 app = win32com.client.GetActiveObject(prog_id)
                 log(f"Successfully connected to WPS via {prog_id}")
                 return app
-            except Exception:
-                try:
-                    # 尝试创建新实例
-                    app = win32com.client.Dispatch(prog_id)
-                    log(f"Successfully created WPS instance via {prog_id}")
-                    return app
-                except Exception as e:
-                    log(f"Cannot get WPS application via {prog_id}: {e}")
-                    continue
+            except Exception as e:
+                log(f"Cannot get running WPS application via {prog_id}: {e}")
+            
+            try: 
+                app = dynamic.Dispatch(prog_id)
+                
+                log(f"Successfully created WPS via {prog_id} (Dynamic)")
+                self._ensure_app_ready(app)
+                return app
+            except Exception as e:
+                log(f"Cannot get WPS application via {prog_id}: {e}")
+            
+            try:
+                # 尝试创建新实例
+                app = win32com.client.Dispatch(prog_id)
+                log(f"Successfully created WPS instance via {prog_id}")
+                return app
+            except Exception as e:
+                log(f"Cannot get WPS application via {prog_id}: {e}")
+                continue
         
         raise Exception(f"未找到运行中的 {self.app_name}，请先打开")
     
