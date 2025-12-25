@@ -20,6 +20,14 @@ from .icon import create_status_icon
 from ..hotkey.dialog import HotkeyDialog
 from ..settings.dialog import SettingsDialog
 
+try:
+    if is_macos():
+        from ...utils.macos.dock import begin_ui_session, end_ui_session, activate_app
+    else:  # pragma: no cover
+        begin_ui_session = end_ui_session = activate_app = lambda *args, **kwargs: None
+except Exception:  # pragma: no cover
+    begin_ui_session = end_ui_session = activate_app = lambda *args, **kwargs: None
+
 
 class TrayMenuManager:
     """托盘菜单管理器"""
@@ -171,6 +179,13 @@ class TrayMenuManager:
                         icon.update_menu()
                 except Exception as e:
                     log(f"Failed to refresh tray menu after hotkey save: {e}")
+
+                # 如果设置窗口正在打开，实时刷新里面的热键展示
+                try:
+                    if self.settings_dialog and self.settings_dialog.is_alive():
+                        self.settings_dialog.refresh_hotkey_display()
+                except Exception as e:
+                    log(f"Failed to refresh settings hotkey display: {e}")
                 
                 log(f"Hotkey changed to: {new_hotkey}")
                 self.notification_manager.notify(
@@ -191,6 +206,7 @@ class TrayMenuManager:
             previous_block = bool(getattr(app_state, "ui_block_hotkeys", False))
             try:
                 if self.hotkey_dialog and self.hotkey_dialog.is_alive():
+                    activate_app()
                     self.hotkey_dialog.restore_and_focus()
                     return
                 
@@ -198,11 +214,18 @@ class TrayMenuManager:
                 app_state.ui_block_hotkeys = True
                 if is_windows() and self.pause_hotkey_callback:
                     self.pause_hotkey_callback()
-                
+
+                begin_ui_session()
+
+                def _on_dialog_close():
+                    end_ui_session()
+                    if is_windows() and self.resume_hotkey_callback:
+                        self.resume_hotkey_callback()
+
                 dialog = HotkeyDialog(
                     current_hotkey=app_state.hotkey_str,
                     on_save=save_hotkey,
-                    on_close=self.resume_hotkey_callback if is_windows() else None,
+                    on_close=_on_dialog_close,
                 )
                 self.hotkey_dialog = dialog
 
@@ -220,6 +243,7 @@ class TrayMenuManager:
             finally:
                 if not dialog_shown:
                     app_state.ui_block_hotkeys = previous_block
+                    end_ui_session()
                     if is_windows() and self.resume_hotkey_callback:
                         self.resume_hotkey_callback()
 
@@ -299,9 +323,11 @@ class TrayMenuManager:
             # 刷新菜单以反映可能的配置更改（如语言）
             set_language(app_state.config.get("language", "zh"))
             try:
-                icon.menu = self.build_menu()
-                if hasattr(icon, "update_menu"):
-                    icon.update_menu()
+                tray_icon = icon or getattr(app_state, "icon", None)
+                if tray_icon is not None:
+                    tray_icon.menu = self.build_menu()
+                    if hasattr(tray_icon, "update_menu"):
+                        tray_icon.update_menu()
             except Exception as e:
                 log(f"Failed to refresh tray menu after settings save: {e}")
 
@@ -309,14 +335,29 @@ class TrayMenuManager:
             """在主线程显示设置对话框"""
             try:
                 if self.settings_dialog and self.settings_dialog.is_alive():
+                    activate_app()
                     self.settings_dialog.restore_and_focus()
                     return
-                    
+
+                begin_ui_session()
+
+                def _on_dialog_close():
+                    end_ui_session()
+                    if self.resume_hotkey_callback:
+                        self.resume_hotkey_callback()
+
                 dialog = SettingsDialog(
                     on_save=on_settings_save,
-                    on_close=self.resume_hotkey_callback
+                    on_close=_on_dialog_close,
                 )
                 self.settings_dialog = dialog
+
+                try:
+                    dialog.set_open_hotkey_dialog(
+                        lambda: self._on_set_hotkey(icon, None)
+                    )
+                except Exception:
+                    pass
 
                 def _clear_settings_dialog(event=None):
                     if getattr(event, "widget", None) is dialog.root or event is None:
@@ -327,6 +368,7 @@ class TrayMenuManager:
             except Exception as e:
                 log(f"Failed to show settings dialog: {e}")
                 self.notification_manager.notify("PasteMD", f"Error opening settings: {e}", ok=False)
+                end_ui_session()
 
         ui_queue = getattr(app_state, "ui_queue", None)
         if ui_queue is not None:

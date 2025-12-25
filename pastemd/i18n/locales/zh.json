@@ -18,6 +18,8 @@
     "hotkey.dialog.title": "设置热键",
     "hotkey.dialog.waiting_input": "等待按键...",
     "hotkey.recorder.error.invalid_format": "无效的热键格式: {error}",
+    "settings.general.hotkey": "全局热键：",
+    "settings.general.set_hotkey": "设置热键",
     "hotkey.recorder.error.no_key_detected": "未检测到按键",
     "hotkey.recorder.error.no_modifier": "热键必须包含至少一个修饰键（Ctrl、Shift、Alt）",
     "hotkey.recorder.error.no_normal_key": "热键必须包含至少一个普通键",

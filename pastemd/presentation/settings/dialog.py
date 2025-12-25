@@ -20,7 +20,11 @@ from ...config.defaults import DEFAULT_CONFIG
 class SettingsDialog:
     """设置对话框"""
     
-    def __init__(self, on_save: Callable[[], None], on_close: Optional[Callable[[], None]] = None):
+    def __init__(
+        self,
+        on_save: Callable[[], None],
+        on_close: Optional[Callable[[], None]] = None,
+    ):
         """
         初始化设置对话框
         
@@ -31,6 +35,7 @@ class SettingsDialog:
         self.on_save_callback = on_save
         self.on_close_callback = on_close
         self._close_callback_called = False
+        self._open_hotkey_dialog: Optional[Callable[[], None]] = None
         self.config_loader = ConfigLoader()
         
         # 加载当前配置的副本，避免直接修改 app_state
@@ -96,6 +101,25 @@ class SettingsDialog:
         
         # 创建UI组件
         self._create_widgets()
+
+    def set_open_hotkey_dialog(self, callback: Optional[Callable[[], None]]) -> None:
+        """Inject a callback to open the hotkey dialog (provided by TrayMenuManager)."""
+        self._open_hotkey_dialog = callback
+        try:
+            btn = getattr(self, "set_hotkey_btn", None)
+            if btn is not None:
+                btn.configure(state="normal" if callback else "disabled")
+        except Exception:
+            pass
+
+    def refresh_hotkey_display(self) -> None:
+        """Refresh the hotkey label from global config/state."""
+        try:
+            if hasattr(self, "hotkey_display_var"):
+                value = app_state.config.get("hotkey") or getattr(app_state, "hotkey_str", "")
+                self.hotkey_display_var.set(str(value))
+        except Exception as e:
+            log(f"Failed to refresh hotkey display: {e}")
 
     def _call_on_close_callback(self):
         """确保关闭回调只调用一次"""
@@ -217,8 +241,31 @@ class SettingsDialog:
             self.move_cursor_var = tk.BooleanVar(value=self.current_config.get("move_cursor_to_end", True))
             ttk.Checkbutton(frame, text=t("settings.general.move_cursor"), variable=self.move_cursor_var).grid(row=5, column=0, columnspan=3, sticky=tk.W, pady=5)
             
+        hotkey_row = 5 if not is_windows() else 6
+        language_row = hotkey_row + 1
+
+        # 热键（从设置页直接打开热键录制）
+        ttk.Label(frame, text=t("settings.general.hotkey")).grid(row=hotkey_row, column=0, sticky=tk.W, pady=(10, 5))
+        self.hotkey_display_var = tk.StringVar(
+            value=str(self.current_config.get("hotkey") or getattr(app_state, "hotkey_str", ""))
+        )
+        ttk.Label(frame, textvariable=self.hotkey_display_var).grid(row=hotkey_row, column=1, sticky=tk.W, padx=5, pady=(10, 5))
+        set_hotkey_btn = ttk.Button(
+            frame,
+            text=t("settings.general.set_hotkey"),
+            command=self._on_open_hotkey,
+            width=12,
+        )
+        set_hotkey_btn.grid(row=hotkey_row, column=2, sticky=tk.E, padx=5, pady=(10, 5))
+        self.set_hotkey_btn = set_hotkey_btn
+        if not self._open_hotkey_dialog:
+            try:
+                set_hotkey_btn.configure(state="disabled")
+            except Exception:
+                pass
+
         # 语言设置（移动到常规页最下方）
-        ttk.Label(frame, text=t("settings.general.language")).grid(row=6, column=0, sticky=tk.W, pady=(15, 5))
+        ttk.Label(frame, text=t("settings.general.language")).grid(row=language_row, column=0, sticky=tk.W, pady=(15, 5))
         
         # 获取当前语言代码和对应的显示名称
         current_code = self.current_config.get("language", "zh")
@@ -235,9 +282,23 @@ class SettingsDialog:
             self.lang_map[label] = code
         
         self.lang_combo['values'] = langs
-        self.lang_combo.grid(row=6, column=1, sticky=tk.W, padx=5, pady=(15, 5))
+        self.lang_combo.grid(row=language_row, column=1, sticky=tk.W, padx=5, pady=(15, 5))
         # 绑定 FocusIn，避免自动全选
         self.lang_combo.bind("<FocusIn>", self._on_focus_in)
+
+    def _on_open_hotkey(self) -> None:
+        """Open the hotkey dialog from Settings, then refresh the displayed hotkey."""
+        cb = self._open_hotkey_dialog
+        if not cb:
+            return
+
+        try:
+            cb()
+            # Hotkey dialog is non-blocking; refresh shortly after user action.
+            self.root.after(300, self.refresh_hotkey_display)
+            self.root.after(1200, self.refresh_hotkey_display)
+        except Exception as e:
+            log(f"Failed to open hotkey dialog from settings: {e}")
 
     def _create_conversion_tab(self):
         """创建转换设置选项卡"""
@@ -423,6 +484,10 @@ class SettingsDialog:
             new_config["save_dir"] = self.save_dir_var.get()
             new_config["keep_file"] = self.keep_file_var.get()
             new_config["notify"] = self.notify_var.get()
+            # Preserve the latest hotkey (may have been changed via HotkeyDialog while Settings is open).
+            latest_hotkey = app_state.config.get("hotkey") or getattr(app_state, "hotkey_str", None)
+            if latest_hotkey:
+                new_config["hotkey"] = str(latest_hotkey)
 
             # 获取 action_map 用于映射
             action_map = get_no_app_action_map()

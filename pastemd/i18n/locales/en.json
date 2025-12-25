@@ -18,6 +18,8 @@
     "hotkey.dialog.title": "Set Hotkey",
     "hotkey.dialog.waiting_input": "Waiting for keys...",
     "hotkey.recorder.error.invalid_format": "Invalid hotkey format: {error}",
+    "settings.general.hotkey": "Global hotkey:",
+    "settings.general.set_hotkey": "Set hotkey",
     "hotkey.recorder.error.no_key_detected": "No key press detected.",
     "hotkey.recorder.error.no_modifier": "The hotkey must include at least one modifier key (Ctrl, Shift, Alt).",
     "hotkey.recorder.error.no_normal_key": "The hotkey must include at least one regular key.",

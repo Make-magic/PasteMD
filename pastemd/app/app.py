@@ -104,6 +104,16 @@ def main() -> None:
 
         # 检查单实例运行
         if not check_single_instance():
+            # 已有实例：macOS 上尝试通知已运行实例打开设置页（类似“再次点击应用图标”）
+            if is_macos():
+                try:
+                    from ..utils.macos.ipc import send_command
+
+                    if send_command("open_settings"):
+                        sys.exit(0)
+                except Exception as exc:
+                    log(f"Failed to send reopen command: {exc}")
+
             log("Application is already running")
             sys.exit(1)
         
@@ -122,6 +132,15 @@ def main() -> None:
         root = tk.Tk()
         root.withdraw()  # 隐藏主窗口
         app_state.root = root
+
+        # macOS: 默认隐藏 Dock 图标，仅在弹窗打开时临时显示
+        if is_macos():
+            try:
+                from ..utils.macos.dock import set_dock_visible
+
+                set_dock_visible(False)
+            except Exception as exc:
+                log(f"Failed to hide Dock icon: {exc}")
 
         # 启动热键监听
         hotkey_runner = container.get_hotkey_runner()
@@ -149,6 +168,23 @@ def main() -> None:
         else:
             # Windows: 直接在后台线程运行
             threading.Thread(target=tray_runner.run, daemon=True).start()
+
+        # macOS: 启动本地 IPC，支持“再次启动/点击应用图标”时唤起设置页
+        if is_macos():
+            try:
+                from ..utils.macos.ipc import start_server
+
+                def _handle_command(cmd: str) -> None:
+                    if cmd == "open_settings":
+                        # TrayMenuManager 内部会投递到 UI 队列，确保 Tk 在主线程
+                        try:
+                            tray_menu_manager._on_open_settings(app_state.icon, None)  # noqa: SLF001
+                        except Exception as exc:
+                            log(f"Failed to open settings from IPC: {exc}")
+
+                start_server(_handle_command)
+            except Exception as exc:
+                log(f"Failed to start IPC server: {exc}")
 
         # UI 队列处理函数
         def process_ui_queue():
