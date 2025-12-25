@@ -14,6 +14,13 @@ KEYEVENTF_KEYUP = 0x0002
 VK_CONTROL = 0x11
 VK_V = 0x56
 
+# Define ULONG_PTR if not available
+if not hasattr(wintypes, 'ULONG_PTR'):
+    if ctypes.sizeof(ctypes.c_void_p) == 8:
+        wintypes.ULONG_PTR = ctypes.c_ulonglong
+    else:
+        wintypes.ULONG_PTR = ctypes.c_ulong
+
 
 class _KEYBDINPUT(ctypes.Structure):
     _fields_ = [
