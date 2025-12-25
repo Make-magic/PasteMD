@@ -12,7 +12,7 @@ from typing import Optional
 from pastemd.utils.system_detect import is_windows, is_macos
 
 from ...core.constants import NOTIFICATION_TIMEOUT
-from ...config.paths import get_app_icon_path
+from ...config.paths import get_app_icon_path, get_app_png_path
 from ...utils.logging import log
 from ...core.state import app_state
 
@@ -23,8 +23,10 @@ warnings.filterwarnings("ignore", category=UserWarning, module="win10toast")
 try:
     from plyer import notification as _plyer_notification
     _PLYER_OK = True
-except Exception:
+    log("plyer module loaded successfully")
+except Exception as e:
     _PLYER_OK = False
+    log(f"plyer module load failed: {e}")
 
 # --- Win11 优先 ---
 try:
@@ -45,7 +47,22 @@ if is_windows():
         _win10_toaster = None
         _WIN10_OK = False
 
-# --- mac ---
+# --- mac 原生通知---
+_NATIVE_MACOS_OK = False
+_native_notifier = None
+if is_macos():
+    try:
+        from .native_macos import NativeMacOSNotifier
+        if NativeMacOSNotifier.is_available():
+            _native_notifier = NativeMacOSNotifier
+            _NATIVE_MACOS_OK = True
+            log("Native macOS notifier loaded successfully")
+        else:
+            log("Native macOS notifier not available (Foundation framework missing)")
+    except Exception as e:
+        log(f"Native macOS notifier load failed: {e}")
+
+# --- mac pync---
 _PYNC_OK = False
 _pync_notify = None
 if is_macos():
@@ -53,9 +70,11 @@ if is_macos():
         from pync import Notifier as _PyncNotifier
         _pync_notify = _PyncNotifier
         _PYNC_OK = True
-    except Exception:
+        log("pync module loaded successfully")
+    except Exception as e:
         _PYNC_OK = False
         _pync_notify = None
+        log(f"pync module load failed: {e}")
 
 
 
@@ -90,7 +109,10 @@ class NotificationManager:
             return
         
         self.app_name = app_name
-        self.icon_path = get_app_icon_path()
+        if is_windows():
+            self.icon_path = get_app_icon_path()
+        else:
+            self.icon_path = get_app_png_path()
         self._q: "queue.Queue[tuple[str,str,bool]]" = queue.Queue(maxsize=max_queue)
         self._stop = threading.Event()
         self._worker = threading.Thread(target=self._worker_loop, name="NotifyWorker", daemon=True)
@@ -161,7 +183,7 @@ class NotificationManager:
                 time.sleep(0.01)
                 self._q.task_done()
 
-    # ---- 具体发送实现（Win11→Win10→plyer）----
+    # ---- 具体发送实现（macOS Native→Win11→Win10→pync→plyer）----
     def _send_one(self, title: str, message: str, **kwargs) -> None:
         # 1) Win11
         if _WIN11_OK:
@@ -190,14 +212,16 @@ class NotificationManager:
                 )
                 return
             except Exception as e:
-                log(f"win10toast error, fallback to plyer: {e}")
+                log(f"win10toast error, fallback to pync: {e}")
 
+        # 3) macOS pync
         if is_macos() and _PYNC_OK and _pync_notify is not None:
             try:
                 _pync_notify.notify(
                     message=message,
                     title=title,
                     group="com.richqaq.pastemd",
+                    sender="com.richqaq.pastemd",  # 指定发送者为app bundle ID，避免显示终端图标
                     appIcon=_icon_or_none(self.icon_path),
                     timeout=NOTIFICATION_TIMEOUT,
                 )
@@ -205,7 +229,22 @@ class NotificationManager:
             except Exception as e:
                 log(f"pync notify error: {e}")
 
-        # 3) 其它平台/全部失败：plyer（避免托盘重复，仍建议不传图标）
+        # 4) macOS 原生通知
+        if _NATIVE_MACOS_OK and _native_notifier:
+            try:
+                success = _native_notifier.notify(
+                    title=title,
+                    message=message,
+                    app_icon=_icon_or_none(self.icon_path),
+                    timeout=NOTIFICATION_TIMEOUT,
+                    group="com.richqaq.pastemd"
+                )
+                if success:
+                    return
+            except Exception as e:
+                log(f"Native macOS notification error, fallback: {e}")
+
+        # 5) 其它平台/全部失败：plyer（避免托盘重复，仍建议不传图标）
         if _PLYER_OK:
             try:
                 _plyer_notification.notify(

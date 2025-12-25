@@ -10,7 +10,11 @@ from ..core.errors import PandocError
 from ..utils.logging import log
 
 LUA_KEEP_ORIGINAL_FORMULA = resource_path("lua/keep-latex-math.lua")
+if not os.path.isfile(LUA_KEEP_ORIGINAL_FORMULA):
+    LUA_KEEP_ORIGINAL_FORMULA = resource_path("pastemd/lua/keep-latex-math.lua")
 LUA_LATEX_REPLACEMENTS = resource_path("lua/latex-replacements.lua")
+if not os.path.isfile(LUA_LATEX_REPLACEMENTS):
+    LUA_LATEX_REPLACEMENTS = resource_path("pastemd/lua/latex-replacements.lua")
 
 
 class PandocIntegration:
