@@ -5,6 +5,7 @@ import subprocess
 import pystray
 import threading
 import webbrowser
+from typing import Optional
 
 from ... import __version__
 from ...core.state import app_state
@@ -318,6 +319,14 @@ class TrayMenuManager:
     
     def _on_open_settings(self, icon, item):
         """打开设置界面"""
+        self._open_settings(icon, item, None)
+
+    def open_settings_tab(self, tab_key: Optional[str]) -> None:
+        """Open settings and select a specific tab."""
+        self._open_settings(getattr(app_state, "icon", None), None, tab_key)
+
+    def _open_settings(self, icon, item, select_tab: Optional[str]) -> None:
+        """打开设置界面"""
         def on_settings_save():
             """设置保存后的回调"""
             # 刷新菜单以反映可能的配置更改（如语言）
@@ -336,6 +345,11 @@ class TrayMenuManager:
             try:
                 if self.settings_dialog and self.settings_dialog.is_alive():
                     activate_app()
+                    if select_tab:
+                        try:
+                            self.settings_dialog.select_tab(select_tab)
+                        except Exception as e:
+                            log(f"Failed to select settings tab: {e}")
                     self.settings_dialog.restore_and_focus()
                     return
 
@@ -349,6 +363,7 @@ class TrayMenuManager:
                 dialog = SettingsDialog(
                     on_save=on_settings_save,
                     on_close=_on_dialog_close,
+                    initial_tab=select_tab,
                 )
                 self.settings_dialog = dialog
 

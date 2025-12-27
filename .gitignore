@@ -258,3 +258,5 @@ nuitka-crash-report.xml
 
 # macOS
 **/.DS_Store
+
+*.dmg

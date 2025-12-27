@@ -8,7 +8,9 @@ from ..config.paths import get_app_icon_path, is_first_launch
 from ..utils.system_detect import is_macos
 
 # macOS: 首次启动时打开使用说明页面
-if is_macos() and is_first_launch():
+IS_FIRST_LAUNCH = is_first_launch()
+
+if is_macos() and IS_FIRST_LAUNCH:
     try:
         import webbrowser
         webbrowser.open("https://pastemd.richqaq.cn/macos")
@@ -174,6 +176,17 @@ def main() -> None:
             # 在主线程初始化托盘，然后分离运行
             tray_runner.setup()
             # 使用 setup_detached 后，托盘会在后台线程运行
+            if IS_FIRST_LAUNCH:
+                def _open_permissions_settings():
+                    try:
+                        tray_menu_manager.open_settings_tab("permissions")
+                    except Exception as exc:
+                        log(f"Failed to open permissions settings on first launch: {exc}")
+
+                if ui_queue is not None:
+                    ui_queue.put(_open_permissions_settings)
+                else:
+                    _open_permissions_settings()
         else:
             # Windows: 直接在后台线程运行
             threading.Thread(target=tray_runner.run, daemon=True).start()

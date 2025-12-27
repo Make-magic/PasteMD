@@ -16,6 +16,9 @@ from ...core.state import app_state
 from ...config.loader import ConfigLoader
 from ...config.defaults import DEFAULT_CONFIG
 
+if is_macos():
+    from .permissions import MacOSPermissionsTab
+
 
 class SettingsDialog:
     """设置对话框"""
@@ -24,6 +27,7 @@ class SettingsDialog:
         self,
         on_save: Callable[[], None],
         on_close: Optional[Callable[[], None]] = None,
+        initial_tab: Optional[str] = None,
     ):
         """
         初始化设置对话框
@@ -36,6 +40,9 @@ class SettingsDialog:
         self.on_close_callback = on_close
         self._close_callback_called = False
         self._open_hotkey_dialog: Optional[Callable[[], None]] = None
+        self._initial_tab = initial_tab
+        self._tab_map: Dict[str, tk.Widget] = {}
+        self._permissions_tab = None
         self.config_loader = ConfigLoader()
         
         # 加载当前配置的副本，避免直接修改 app_state
@@ -101,6 +108,8 @@ class SettingsDialog:
         
         # 创建UI组件
         self._create_widgets()
+        if self._initial_tab:
+            self.root.after_idle(lambda: self.select_tab(self._initial_tab))
 
     def set_open_hotkey_dialog(self, callback: Optional[Callable[[], None]]) -> None:
         """Inject a callback to open the hotkey dialog (provided by TrayMenuManager)."""
@@ -189,12 +198,18 @@ class SettingsDialog:
         # 创建 Notebook (选项卡容器)
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 5))
-        
-        # 创建选项卡
+
         self._create_general_tab()
         self._create_conversion_tab()
         self._create_advanced_tab()
         self._create_experimental_tab()
+        # 创建选项卡
+        if is_macos():
+            try:
+                self._permissions_tab = MacOSPermissionsTab(self.notebook, self.root)
+                self._tab_map["permissions"] = self._permissions_tab.frame
+            except Exception as e:
+                log(f"Failed to create permissions tab: {e}")
         
         # 避免首次打开时就选中首个输入框
         self.root.after_idle(self._clear_initial_selection)
@@ -204,6 +219,7 @@ class SettingsDialog:
         frame = ttk.Frame(self.notebook, padding=10)
         frame.columnconfigure(1, weight=1)
         self.notebook.add(frame, text=t("settings.tab.general"))
+        self._tab_map["general"] = frame
         
         # 保存目录
         ttk.Label(frame, text=t("settings.general.save_dir")).grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -305,6 +321,7 @@ class SettingsDialog:
         frame = ttk.Frame(self.notebook, padding=10)
         frame.columnconfigure(1, weight=1)
         self.notebook.add(frame, text=t("settings.tab.conversion"))
+        self._tab_map["conversion"] = frame
         
         # Pandoc 路径
         ttk.Label(frame, text=t("settings.conversion.pandoc_path")).grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -357,6 +374,7 @@ class SettingsDialog:
         """创建高级设置选项卡"""
         frame = ttk.Frame(self.notebook, padding=10)
         self.notebook.add(frame, text=t("settings.tab.advanced"))
+        self._tab_map["advanced"] = frame
         
         # Excel 选项
         self.excel_enable_var = tk.BooleanVar(value=self.current_config.get("enable_excel", True))
@@ -369,6 +387,7 @@ class SettingsDialog:
         """创建实验性功能选项卡"""
         frame = ttk.Frame(self.notebook, padding=10)
         self.notebook.add(frame, text=t("settings.tab.experimental"))
+        self._tab_map["experimental"] = frame
         
         self.keep_formula_var = tk.BooleanVar(value=self.current_config.get("Keep_original_formula", False))
         ttk.Checkbutton(frame, text=t("settings.conversion.keep_formula"), variable=self.keep_formula_var).grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -551,6 +570,16 @@ class SettingsDialog:
             self.root.destroy()
         except Exception as e:
             log(f"Error destroying settings window: {e}")
+
+    def select_tab(self, tab_key: str) -> None:
+        """Select a tab by key."""
+        tab = self._tab_map.get(tab_key)
+        if tab is None:
+            return
+        try:
+            self.notebook.select(tab)
+        except Exception as e:
+            log(f"Failed to select settings tab '{tab_key}': {e}")
 
     def _show_topmost_message(self, title, message, msg_type="info"):
         """显示置顶消息框（使用标准样式）"""
