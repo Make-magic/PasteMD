@@ -350,7 +350,139 @@ pyinstaller --clean -F -w -n PasteMD
 | --- | --- |
 | ![支付宝打赏](docs/pay/Alipay.jpg) | ![微信打赏](docs/pay/Weixinpay.png) |
 
+根据你提供的 `PasteMD-main` 代码结构和内容，这是一个基于 **Python** 开发的应用程序，主要使用了以下技术栈：
 
+*   **GUI 框架**: `tkinter` (用于设置界面和弹窗)
+*   **系统托盘**: `pystray`
+*   **全局热键**: `pynput`
+*   **系统通知**: `plyer`, `win10toast` (Windows), `pync`/AppleScript (macOS)
+*   **文档处理**: `pandoc` (核心转换), `python-docx`, `openpyxl`
+*   **剪贴板管理**: `pyperclip`, `win32clipboard` (Windows), `AppKit` (macOS)
+
+既然你已经安装了 Pandoc 工具，以下是使用 **Nuitka** 在你的电脑上（假设是 Windows，如果是 macOS 请参考文末说明）进行编译部署的详细步骤。
+
+---
+
+### 第一步：准备环境
+
+确保你已经安装了 Python (建议 3.10+)，然后在项目根目录下打开终端（CMD 或 PowerShell），安装项目依赖和 Nuitka。
+
+1.  **安装项目依赖**：
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+2.  **安装 Nuitka** (建议安装 zstandard 以支持 Onefile 压缩)：
+    ```bash
+    pip install nuitka zstandard
+    ```
+
+---
+
+### 第二步：确定资源文件路径
+
+根据 `pastemd/config/paths.py` 的代码逻辑，程序运行时需要加载以下资源文件。我们需要告诉 Nuitka 把这些文件打包进去：
+
+1.  **图标**: `assets/icons`
+2.  **翻译文件**: `pastemd/i18n/locales`
+3.  **Lua 脚本** (用于Pandoc转换): `pastemd/lua`
+
+---
+
+### 第三步：执行 Nuitka 打包命令
+
+请在 **项目根目录**（即包含 `main.py` 的那一层）执行以下命令。
+
+#### 方案 A：打包成单文件 (Onefile) - *推荐，分发方便*
+
+生成的 `.exe` 文件会比较大，但在任何地方双击即可运行。
+
+```powershell
+python -m nuitka --onefile --standalone ^
+    --mingw64 ^
+    --show-progress ^
+    --plugin-enable=tk-inter ^
+    --windows-disable-console ^
+    --windows-icon-from-ico=assets/icons/logo.ico ^
+    --windows-product-name="PasteMD" ^
+    --windows-company-name="RichQAQ" ^
+    --windows-file-version=0.1.6.5 ^
+    --include-data-dir=assets/icons=assets/icons ^
+    --include-data-dir=pastemd/i18n/locales=pastemd/i18n/locales ^
+    --include-data-dir=pastemd/lua=pastemd/lua ^
+    --output-filename=PasteMD.exe ^
+    main.py
+```
+
+*注意：如果你使用的是 CMD 而不是 PowerShell，请将换行符 `^` 保持不变；如果是 Linux/macOS，请换成 `\`。*
+
+#### 方案 B：打包成文件夹 (Standalone) - *启动速度快，便于调试*
+
+这会生成一个 `main.dist` 文件夹，里面包含 `PasteMD.exe` 和依赖库。
+
+```powershell
+python -m nuitka --standalone ^
+    --plugin-enable=tk-inter ^
+    --windows-disable-console ^
+    --windows-icon-from-ico=assets/icons/logo.ico ^
+    --include-data-dir=assets/icons=assets/icons ^
+    --include-data-dir=pastemd/i18n/locales=pastemd/i18n/locales ^
+    --include-data-dir=pastemd/lua=pastemd/lua ^
+    --output-filename=PasteMD.exe ^
+    main.py
+```
+
+---
+
+### 第四步：关于 Pandoc 的处理
+
+代码中的 `pastemd/config/defaults.py` 里的 `find_pandoc()` 函数会按以下顺序查找 Pandoc：
+
+1.  如果是 macOS，查找应用包内的路径。
+2.  查找 **可执行文件同级目录** 下的 `pandoc/pandoc.exe`。
+3.  查找 **资源路径** (PyInstaller/Nuitka 临时目录) 下的 `pandoc/pandoc.exe`。
+4.  **最后兜底**：直接调用系统命令 `pandoc`。
+
+**既然你电脑里已经安装了 Pandoc 并且配置了环境变量（PATH）：**
+
+*   **不需要做额外操作**。程序打包后，运行时会自动在系统 PATH 中找到你的 Pandoc。
+*   **验证方法**：运行打包好的 `PasteMD.exe`，在托盘图标右键 -> 设置 -> 转换 -> Pandoc 路径，应该显示为 `pandoc` 或者你系统的绝对路径。
+
+**如果你想让程序可以在没有安装 Pandoc 的电脑上运行：**
+你需要将你电脑上的 `pandoc.exe` 复制到 Nuitka 生成的文件夹中（如果是 Standalone 模式），或者在打包命令中增加 `--include-data-file=你的pandoc路径=pandoc/pandoc.exe`。
+
+---
+
+### 第五步：运行与测试
+
+1.  **运行**：
+    *   **Onefile模式**：直接双击生成的 `PasteMD.exe`。
+    *   **Standalone模式**：进入 `main.dist` 文件夹，双击 `PasteMD.exe`。
+2.  **检查**：
+    *   看右下角是否有托盘图标。
+    *   右键托盘 -> 打开设置，检查配置是否正常加载。
+    *   复制一段 Markdown，按 `Ctrl+Shift+B`，看是否能成功调用 Pandoc 并插入 Word。
+
+---
+
+### 如果你是 macOS 用户
+
+项目代码中已经包含了一个现成的构建脚本：`build_macos.sh`。
+
+1.  打开终端，进入项目目录。
+2.  确保安装了依赖和 Nuitka。
+3.  运行：
+    ```bash
+    chmod +x build_macos.sh
+    ./build_macos.sh
+    ```
+4.  这个脚本会自动处理打包、图标转换、权限描述写入（Info.plist）等 macOS 特有的操作。它会生成 `nuitka/macos/PasteMD.app`。
+
+### 常见问题排查
+
+1.  **`plyer` 报错**：如果通知不显示，可能需要显式包含 plyer 的平台实现。可以在命令中加入：
+    `--include-module=plyer.platforms.win.notification` (Windows)
+2.  **找不到配置文件**：程序首次运行会在用户目录（`Documents/pastemd` 或 `AppData` 下）生成 `config.json`。如果报错，请检查日志文件（托盘菜单 -> 查看日志）。
 ---
 
 ## License
